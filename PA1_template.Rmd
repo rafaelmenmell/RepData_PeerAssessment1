@@ -2,24 +2,85 @@
 title: "Reproducible Research: Peer Assessment 1"
 output: 
   html_document:
-    keep_md: true
+    keep_md: yes
 ---
 
+##Libraries
+Libraries needed for the course project
+```{r libraries, echo=TRUE}
+library(dplyr)
+library(ggplot2)
+```
 
 ## Loading and preprocessing the data
-
-
+```{r loading, echo=TRUE}
+activity<-read.csv("activity.csv",header = TRUE)
+activity$date<-as.Date(activity$date)
+```
 
 ## What is mean total number of steps taken per day?
+```{r hist, echo=TRUE}
+total.day <- activity %>%  group_by(date) %>%  summarise(sum=sum(steps,na.rm=TRUE))
+ggplot(total.day)+geom_histogram(aes(x=sum),binwidth=5000)+xlab("Total steps")+ylab("Frequency")
+```
 
+```{r mean, echo=TRUE}
+mean(total.day$sum,na.rm=TRUE)
+```
+
+Median of steps taken per day:
+```{r median, echo=TRUE}
+median(total.day$sum,na.rm=TRUE)
+```
 
 
 ## What is the average daily activity pattern?
-
-
+```{r pattern, echo=TRUE}
+pattern <- activity %>% group_by(interval) %>% summarise(mean=mean(steps,na.rm=TRUE))
+ggplot(pattern, aes(x=interval,y=mean)) + geom_line() + xlab("5 minute Interval") + ylab("Average of steps taken")
+#5-minute interval which contains the maximum number of steps
+as.numeric(arrange(pattern,desc(mean))[1,"interval"])
+```
 
 ## Imputing missing values
+```{r missing, echo=TRUE}
+#Total number of missing values
+sum(is.na(activity$steps))
+#Replace them with the average of its 5 minute interval
+replaceNA <- function(steps,interval){
+  if(is.na(steps)==TRUE){
+    return(pattern[pattern$interval==interval,]$mean)
+  } else {
+    return(steps)
+  }
+}
+activity2 <- activity
+activity2$steps <- mapply(replaceNA,activity$steps,activity$interval)
+```
+```{r hist2, echo=TRUE}
+total.day2 <- activity2 %>%  group_by(date) %>%  summarise(sum=sum(steps,na.rm=TRUE))
+ggplot(total.day2)+geom_histogram(aes(x=sum),binwidth=5000)+xlab("Total steps")+ylab("Frequency")
+```
 
+```{r mean2, echo=TRUE}
+#before imputing missing values
+mean(total.day$sum,na.rm=TRUE)
+#after
+mean(total.day2$sum,na.rm=TRUE)
+```
 
+Median of steps taken per day:
+```{r median2, echo=TRUE}
+#before imputing missing values
+median(total.day$sum,na.rm=TRUE)
+#after
+median(total.day2$sum,na.rm=TRUE)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r weekdays, echo=TRUE}
+activity2$day <- weekdays(activity2$date)
+activity2$day <- as.factor(ifelse(activity2$day %in% c("sabado","domingo"),"weekend","weekday"))
+pattern2 <- activity2 %>% group_by(day,interval) %>% summarise(mean=mean(steps,na.rm=TRUE))
+ggplot(pattern2, aes(x=interval,y=mean)) + geom_line() + facet_grid(. ~ day) + xlab("5 minute Interval") + ylab("Average of steps taken")
+```
